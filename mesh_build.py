@@ -95,7 +95,7 @@ class Mesh(object):
 
         within_triangle = float(((s>=0) and (t>=0) and (s+t<=1)))
         if within_triangle and ((s == 0) or (t == 0) or (s+t == 1)):
-            within_triangle = 0.5
+            within_triangle = 1.0
         return within_triangle
 
     ## Make sure at least one vector is uneven to disqualify. Check +- along major axis (max pos 6 checks)
@@ -121,12 +121,12 @@ class Mesh(object):
         for vector in test_vectors:
             intersection_counter = 0.0
             for triangle in self.triangles:
-                intersects, P_i = self.__segment_intersects_plane(triangle, point, vector)
-                if intersects and self.vertex_dict.get(tuple(P_i), True):
+                intersects_plane, P_i = self.__segment_intersects_plane(triangle, point, vector)
+                if intersects_plane and self.vertex_dict.get(tuple(P_i), True):
                     #intersection_counter += self.__point_within_triangle_real(triangle, P_i)
                     inter = self.__point_within_triangle(triangle, P_i)
-                    if inter==0.5: #TODO Does this save time/iterations? 
-                        return True
+                    #if inter==0.5: #TODO Does this save time/iterations? Answer: No. This if statement is negatively impacting results when
+                    #    return (within_mesh) #TODO this if statement is accepting points
                     intersection_counter+=inter
             odd_num_of_intersections = intersection_counter%2.0 != 0
             if odd_num_of_intersections:
@@ -184,15 +184,15 @@ if __name__=='__main__':
     fig = plt.figure() #[1]
     ax = fig.add_subplot(111, projection='3d')# [1]
 
-    ax.scatter3D(model.all_vert[:,0], model.all_vert[:,1], model.all_vert[:,2])
+    #ax.scatter3D(model.all_vert[:,0], model.all_vert[:,1], model.all_vert[:,2])
     #ax.add_collection3d(Poly3DCollection(model.triangles,facecolors='cyan', edgecolors='b', alpha=.5))
 
     #$$$
     diff_mesh = model.diff_mesh_real(scan)
     all_vert = diff_mesh.all_vert
     if len(all_vert)>0:
-        ax.scatter3D(all_vert[:,0], all_vert[:,1], all_vert[:,2])
-        ax.add_collection3d(Poly3DCollection(diff_mesh.triangles,facecolors='yellow', edgecolors='b', alpha=.5))
+        #ax.scatter3D(all_vert[:,0], all_vert[:,1], all_vert[:,2])
+        ax.add_collection3d(Poly3DCollection(diff_mesh.triangles,facecolors='yellow', edgecolors='orange', alpha=.5))
     else:
         print("No vert")
     #$$$
