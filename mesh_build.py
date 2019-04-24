@@ -15,6 +15,7 @@ class Mesh(object):
         self.triangles = []
         self.bounding_box_max = []
         self.bounding_box_min = []
+        self.vertex_dict = dict()
         if stl_file != None:
             self.get_mesh(stl_file)
     
@@ -26,7 +27,6 @@ class Mesh(object):
         triangle = []
         vertex = []
         mesh = []
-        all_vertex = []
         for line in par.get_raw_data():
             line = line.split(" ")
             if line[0] == "vertex":
@@ -44,6 +44,7 @@ class Mesh(object):
 
         #from https://www.w3schools.com/python/python_howto_remove_duplicates.asp
         self.all_vert = list(dict.fromkeys(self.all_vert))
+        self.vertex_dict = dict((token,False) for token in self.all_vert)
         self.all_vert = np.array(self.all_vert)
     
         self.triangles = np.array(mesh)
@@ -78,7 +79,7 @@ class Mesh(object):
                 P_i = pointA + r*(pointB)
         return intersection_detected, P_i
 
-    def __point_within_triangle_real(self, triangle, point):
+    def __point_within_triangle(self, triangle, point):
 
         u = triangle[1] - triangle [0]#1-0
         v = triangle[2] - triangle[0] #2-0
@@ -121,9 +122,9 @@ class Mesh(object):
             intersection_counter = 0.0
             for triangle in self.triangles:
                 intersects, P_i = self.__segment_intersects_plane(triangle, point, vector)
-                if intersects:
+                if intersects and self.vertex_dict.get(tuple(P_i), True):
                     #intersection_counter += self.__point_within_triangle_real(triangle, P_i)
-                    inter = self.__point_within_triangle_real(triangle, P_i)
+                    inter = self.__point_within_triangle(triangle, P_i)
                     if inter==0.5: #TODO Does this save time/iterations? 
                         return True
                     intersection_counter+=inter
@@ -133,29 +134,65 @@ class Mesh(object):
 
         return not(within_mesh)
 
-    ##
+    ## TODO remove triangles from input mesh
+    ## TODO consider returning a new mesh
     def diff_mesh_real(self,mesh):
         diff = []
+        diff_mesh = Mesh()
+        
+
         for point in mesh.all_vert:
-            if (not(self.__point_within_mesh(point))):
+            
+            if (self.vertex_dict.get(tuple(point), True) and not(self.__point_within_mesh(point))):
                 diff.append(point)
-        return np.array(diff)
+        diff_mesh.set_triangles(mesh.triangles)
+        diff_mesh.set_vertices(diff)
+        return diff_mesh #np.array(diff)
+
+    ## set new vertices
+    def set_vertices(self, vert):
+        vert_1 = []
+        for ver in vert:
+            vert_1.append(tuple(ver))
+        self.all_vert = list(dict.fromkeys(vert_1))
+        self.vertex_dict = dict((token,False) for token in self.all_vert)
+        self.all_vert = np.array(self.all_vert)
+
+        self.bounding_box_max = (np.amax(self.all_vert[:,0]), np.amax(self.all_vert[:,1]), np.amax(self.all_vert[:,2]))
+        self.bounding_box_min = (np.amin(self.all_vert[:,0]), np.amin(self.all_vert[:,1]), np.amin(self.all_vert[:,2]))
+        
+        #update triangles
+        new_triangles = []
+        for triangle in self.triangles:
+            counter = 0
+            for point in triangle:
+                if self.vertex_dict.get(tuple(point), True):
+                    break
+                else:
+                    counter+=1
+            if counter >= 3:
+                new_triangles.append(triangle)
+        self.triangles = np.array(new_triangles)
+
+    def set_triangles(self, triangles):
+        self.triangles = np.array(triangles)
 
 if __name__=='__main__':
     model = Mesh('model.stl')
     scan = Mesh('scan.stl')
 
-    
     fig = plt.figure() #[1]
     ax = fig.add_subplot(111, projection='3d')# [1]
 
     ax.scatter3D(model.all_vert[:,0], model.all_vert[:,1], model.all_vert[:,2])
-    ax.add_collection3d(Poly3DCollection(model.triangles,facecolors='cyan', edgecolors='b', alpha=.5))
+    #ax.add_collection3d(Poly3DCollection(model.triangles,facecolors='cyan', edgecolors='b', alpha=.5))
 
     #$$$
-    all_vert = model.diff_mesh_real(scan)
+    diff_mesh = model.diff_mesh_real(scan)
+    all_vert = diff_mesh.all_vert
     if len(all_vert)>0:
         ax.scatter3D(all_vert[:,0], all_vert[:,1], all_vert[:,2])
+        ax.add_collection3d(Poly3DCollection(diff_mesh.triangles,facecolors='yellow', edgecolors='b', alpha=.5))
     else:
         print("No vert")
     #$$$
