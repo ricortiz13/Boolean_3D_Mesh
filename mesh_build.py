@@ -109,34 +109,40 @@ class Mesh(object):
         within_triangle = float(((s>=0) and (t>=0) and (s+t<=1)))
         if within_triangle and ((s == 0) or (t == 0) or (s+t == 1)):
             within_triangle = 0.5
-        print(within_triangle)
         return within_triangle
 
     ## Make sure at least one vector is uneven to disqualify. Check +- along major axis (max pos 6 checks)
+    ## TODO add check to remove vertices
     def __point_within_mesh(self, point):
         pos_intersections = 0.0
         neg_intersections = 0.0
+        
         within_mesh = False
-
+        offset = (abs(self.bounding_box_min[-1])+abs(self.bounding_box_max[-1]))*100
+        
         #Z axis check (May need to do this on all axes to eliminate surface points)
-        below_mesh = np.array([point[0],point[1],point[2]-(abs(self.bounding_box_min[-1])+abs(self.bounding_box_max[-1]))*100])#test vector in the vertical -z dir
-        above_mesh = np.array([point[0],point[1],point[2]+(abs(self.bounding_box_min[-1])+abs(self.bounding_box_max[-1]))*100])#test vector in the vertical +z dir
+        # below_mesh = np.array([point[0],point[1],point[2]-offset)#test vector in the vertical -z dir
+        # above_mesh = np.array([point[0],point[1],point[2]+offset)#test vector in the vertical +z dir
 
-        for triangle in self.triangles:
-            intersects_below, neg_P_i = self.__segment_intersects_plane_real(triangle, point, below_mesh)
-            if (intersects_below):
-                within_triangle_neg = self.__point_within_triangle_real(triangle, neg_P_i)
-                neg_intersections+=within_triangle_neg
+        pos_x_check = np.array([point[0]+offset,point[1],point[2]])
+        pos_y_check = np.array([point[0],point[1]+offset,point[2]])
+        pos_z_check = np.array([point[0],point[1],point[2]+offset]) 
 
-            intersects_above, pos_P_i = self.__segment_intersects_plane_real(triangle, point, above_mesh)
-            if (intersects_above):
-                within_triangle_pos = self.__point_within_triangle_real(triangle, pos_P_i)
-                pos_intersections+=within_triangle_pos
+        neg_x_check = np.array([point[0]-offset,point[1],point[2]])
+        neg_y_check = np.array([point[0],point[1]-offset,point[2]])
+        neg_z_check = np.array([point[0],point[1],point[2]-offset])
 
-        if (pos_intersections>neg_intersections):
-            within_mesh = not(neg_intersections%2 == 0)
-        else:
-            within_mesh = not(pos_intersections%2 == 0)
+        test_vectors = [pos_x_check, neg_x_check, pos_y_check, neg_y_check, pos_z_check, neg_z_check]
+        
+        for vector in test_vectors:
+            intersection_counter = 0.0
+            for triangle in self.triangles:
+                intersects, P_i = self.__segment_intersects_plane_real(triangle, point, vector)
+                if intersects:
+                    intersection_counter += self.__point_within_triangle_real(triangle, P_i)
+            if intersection_counter%2.0 != 0:
+                return True
+
         return within_mesh
 
     def diff_mesh_real(self,mesh):
@@ -268,7 +274,10 @@ if __name__=='__main__':
 
     #$$$
     all_vert = model.diff_mesh_real(scan)
-    ax.scatter3D(all_vert[:,0], all_vert[:,1], all_vert[:,2])
+    if len(all_vert)>0:
+        ax.scatter3D(all_vert[:,0], all_vert[:,1], all_vert[:,2])
+    else:
+        print("No vert")
     #$$$
     #ax.scatter3D(scan.all_vert[:,0], scan.all_vert[:,1], scan.all_vert[:,2])
     #ax.add_collection3d(Poly3DCollection(scan.triangles,facecolors='yellow', edgecolors='b', alpha=.5))
