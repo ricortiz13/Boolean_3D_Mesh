@@ -1,7 +1,7 @@
 ## @author Ricardo Ortiz
 #  @date April 20th, 2019
 #
-from parser import Parser, STL_Parser
+from parser_mesh import Parser_Mesh, STL_Parser
 
 import math
 import numpy as np
@@ -22,7 +22,7 @@ class Mesh(object):
     ## Parse an stl file and extract mesh (triangles and vertices)
     #  @param stl_file File used to extract geometry/triangle data
     def get_mesh(self, stl_file):
-        par = Parser(stl_file)
+        par = Parser_Mesh(stl_file)
         counter = 0
         triangle = []
         vertex = []

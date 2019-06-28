@@ -1,7 +1,7 @@
 ## @author Ricardo Ortiz
 #  @date April 20th, 2019
 #
-class Parser(object):
+class Parser_Mesh(object):
     def __init__(self,filename):
         self.__file_data = []
         self.read_file(filename)
@@ -13,7 +13,7 @@ class Parser(object):
     def get_raw_data(self):
         return self.__file_data
 
-class STL_Parser(Parser):
+class STL_Parser(Parser_Mesh):
     def read_file(self,filename):
         #facet
         #space delimited
